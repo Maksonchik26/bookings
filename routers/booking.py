@@ -15,7 +15,7 @@ bookings = APIRouter(
 
 stats = APIRouter(
     prefix='/bookings/stats',
-    tags=['stats']
+    tags=['/bookings/stats']
 )
 
 
@@ -51,6 +51,12 @@ def get_by_param(booking_date: str | None = None,
     return data
 
 
+@bookings.get("/avg_length_of_stay", status_code=status.HTTP_200_OK)
+def get_avg_length_of_stay(df=Depends(import_data_to_df)):
+    df["length_of_stay"] = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
+    return {"avg_length_of_stay": df["length_of_stay"].mean()}
+
+
 @bookings.get('/{test_id}', response_model=List[BookingOut] | BookingOut, status_code=status.HTTP_200_OK)
 def get_one(test_id: int,
             test_crud: BookingCRUD = Depends()):
@@ -64,10 +70,7 @@ def get_one(test_id: int,
 #     data = test_crud.read_one(test_id)
 #     return data
 
-@bookings.get("/avg_length_of_stay", status_code=status.HTTP_200_OK)
-def get_avg_length_of_stay(df=Depends(import_data_to_df)):
-    df["length_of_stay"] = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
-    return {"avg_length_of_stay": df["length_of_stay"].mean()}
+
 
 
 @bookings.get("/avg_daily_rate/{id}", status_code=status.HTTP_200_OK)
