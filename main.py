@@ -5,12 +5,13 @@ from db.base import engine
 from db.tables import Base
 from routers import booking
 
-import to_sql
+import to_sql, to_df
 
 
 app = FastAPI()
 
-app.include_router(booking.router)
+app.include_router(booking.bookings)
+app.include_router(booking.stats)
 
 
 @app.get("/")

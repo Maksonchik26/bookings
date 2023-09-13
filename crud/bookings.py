@@ -32,5 +32,13 @@ class BookingCRUD:
         self.session.delete(obj)
         self.session.commit()
 
+    def read_by_params(self, booking_date: str | None, length_of_stay: int | None, guest_name: str | None,
+                       daily_rate: float | None) -> Booking:
+        return self.session.query(Booking).filter(Booking.booking_date == booking_date if booking_date else None,
+                                                  Booking.length_of_stay == length_of_stay if length_of_stay else None,
+                                                  Booking.guest_name == guest_name if guest_name else None,
+                                                  Booking.daily_rate == daily_rate if daily_rate else None,
+                                                  ).all()
+
     def __del__(self):
         self.session.close()
