@@ -10,6 +10,7 @@ from crud_for_db.bookings import BookingCRUD
 from models import booking_db, booking_df
 from to_df import import_data_to_df
 
+
 bookings = APIRouter(
     prefix='/bookings',
     tags=['bookings']
@@ -66,9 +67,9 @@ def get_total_revenue(df=Depends(import_data_to_df)):
     data = city_hotels_rev | resort_hotels_rev
     return data
 
-
-
-
+@bookings.get("/top_countries", status_code=status.HTTP_200_OK)
+def get_top_countries(df=Depends(import_data_to_df)):
+    df_group_by_country = df.groupby(["country"])
 
 
 @bookings.get('/search', status_code=status.HTTP_200_OK)
@@ -83,8 +84,13 @@ def get_by_param(booking_date: str | None = None,
 
 @bookings.get("/avg_length_of_stay", status_code=status.HTTP_200_OK)
 def get_avg_length_of_stay(df=Depends(import_data_to_df)):
-    df["length_of_stay"] = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
-    return {"avg_length_of_stay": df["length_of_stay"].mean()}
+    df_without_canceled = df[df["is_canceled"] == 0]
+    df_without_canceled["booking year"] = df["booking_date"].apply(lambda x: x[:4])
+    avg_length_of_stay = df_without_canceled.groupby(["hotel", "booking year"])[["length_of_stay"]].mean()
+    city_hotels_avg = avg_length_of_stay.xs("City Hotel").rename(columns={"length_of_stay": "City Hotel"})
+    resort_hotels_avg = avg_length_of_stay.xs("Resort Hotel").rename(columns={"length_of_stay": "Resort Hotel"})
+    data = city_hotels_avg.to_dict() | resort_hotels_avg.to_dict()
+    return data
 
 
 @bookings.get('/{id}', response_model=List[booking_db.BookingOut] | booking_db.BookingOut,
@@ -109,4 +115,3 @@ def get_total_number_of_bookings(df=Depends(import_data_to_df)):
 def get_avg_length_of_stay(df=Depends(import_data_to_df)):
     df["length_of_stay"] = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
     return {"avg_length_of_stay": df["length_of_stay"].mean()}
-

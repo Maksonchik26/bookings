@@ -17,8 +17,7 @@ def import_data_to_df():
     df["arrival_date"] = df["arrival_date"].dt.strftime("%Y-%m-%d")
     df["booking_date"] = df["booking_date"].dt.strftime("%Y-%m-%d")
     df["length_of_stay"] = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
-    df.drop(columns=["arrival_date_year",
-                     "arrival_date_day_of_month",
+    df.drop(columns=["arrival_date_day_of_month",
                      "arrival_date_week_number",
                      "stays_in_weekend_nights",
                      "stays_in_week_nights"
@@ -26,7 +25,3 @@ def import_data_to_df():
             inplace=True)
 
     return df
-
-
-# print(import_data_to_df()[import_data_to_df()["country"] == "FRA"].to_string().replace("\\","").to)
-
