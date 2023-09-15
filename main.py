@@ -5,8 +5,7 @@ from db.base import engine
 from db.tables import Base
 from routers import booking
 
-import to_sql, to_df
-
+import to_sql
 
 app = FastAPI()
 

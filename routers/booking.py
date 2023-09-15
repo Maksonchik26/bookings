@@ -1,11 +1,13 @@
+import json
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
+from pydantic import Field
 from starlette import status
 from starlette.responses import Response
 
-from crud.bookings import BookingCRUD
-from models.booking import BookingOut, BookingIn
+from crud_for_db.bookings import BookingCRUD
+from models import booking_db, booking_df
 from to_df import import_data_to_df
 
 bookings = APIRouter(
@@ -19,26 +21,45 @@ stats = APIRouter(
 )
 
 
-
-@bookings.get('/', response_model=List[BookingOut], status_code=status.HTTP_200_OK)
+@bookings.get('/', response_model=List[booking_db.BookingOut], status_code=status.HTTP_200_OK)
 def get_all(test_crud: BookingCRUD = Depends()):
     data = test_crud.read_all()
     return data
 
 
-@bookings.post('/', response_model=BookingOut, status_code=status.HTTP_201_CREATED)
-def create(test_data: BookingIn,
+@bookings.post('/', response_model=booking_db.BookingOut, status_code=status.HTTP_201_CREATED)
+def create(test_data: booking_db.BookingIn,
            test_crud: BookingCRUD = Depends()):
     data = test_crud.create(test_data.__dict__)
     return data
 
 
-@bookings.delete('/{id}', response_model=BookingOut)
+@bookings.delete('/{id}', response_model=booking_db.BookingOut)
 def delete(id: int,
            test_crud: BookingCRUD = Depends()):
     data = test_crud.read_one(id)
     test_crud.delete(data)
     return Response()
+
+
+@bookings.get("/nationality",
+              response_model=List[booking_df.BookingOut],
+              status_code=status.HTTP_200_OK)
+def get_by_nationality(country: str, df=Depends(import_data_to_df)):
+    filter_data = df[df["country"] == country].head(2)
+    data = [json.loads(filter_data.iloc[i].to_json()) for i in range(len(filter_data))]
+    return data
+
+
+@bookings.get("/popular_meal_package", status_code=status.HTTP_200_OK)
+def get_popular_meal_package(df=Depends(import_data_to_df)):
+    data = df["meal"].value_counts().idxmax()
+    return {"popular_meal_package": data}
+
+@bookings.get("/total_revenue", status_code=status.HTTP_200_OK)
+def get_total_revenue(df=Depends(import_data_to_df)):
+    df.groupby(['hotel', 'cylinders']).mean()
+
 
 
 @bookings.get('/search', status_code=status.HTTP_200_OK)
@@ -57,20 +78,12 @@ def get_avg_length_of_stay(df=Depends(import_data_to_df)):
     return {"avg_length_of_stay": df["length_of_stay"].mean()}
 
 
-@bookings.get('/{test_id}', response_model=List[BookingOut] | BookingOut, status_code=status.HTTP_200_OK)
-def get_one(test_id: int,
+@bookings.get('/{id}', response_model=List[booking_db.BookingOut] | booking_db.BookingOut,
+              status_code=status.HTTP_200_OK)
+def get_one(id: int = Path(ge=0),
             test_crud: BookingCRUD = Depends()):
-    data = test_crud.read_one(test_id)
+    data = test_crud.read_one(id)
     return data
-
-
-# @bookings.get('/stats/', status_code=status.HTTP_200_OK)
-# def get_(test_id: int,
-#             test_crud: BookingCRUD = Depends()):
-#     data = test_crud.read_one(test_id)
-#     return data
-
-
 
 
 @bookings.get("/avg_daily_rate/{id}", status_code=status.HTTP_200_OK)
@@ -87,3 +100,4 @@ def get_total_number_of_bookings(df=Depends(import_data_to_df)):
 def get_avg_length_of_stay(df=Depends(import_data_to_df)):
     df["length_of_stay"] = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
     return {"avg_length_of_stay": df["length_of_stay"].mean()}
+
