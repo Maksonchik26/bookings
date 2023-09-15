@@ -56,9 +56,18 @@ def get_popular_meal_package(df=Depends(import_data_to_df)):
     data = df["meal"].value_counts().idxmax()
     return {"popular_meal_package": data}
 
+
 @bookings.get("/total_revenue", status_code=status.HTTP_200_OK)
 def get_total_revenue(df=Depends(import_data_to_df)):
-    df.groupby(['hotel', 'cylinders']).mean()
+    df["revenue"] = df["adr"] * df["length_of_stay"]
+    revenues = df.groupby(["hotel", "arrival_date_month"])[["revenue"]].sum()
+    city_hotels_rev = revenues.xs("City Hotel").rename(columns={"revenue": "City Hotel"}).to_dict()
+    resort_hotels_rev = revenues.xs("Resort Hotel").rename(columns={"revenue": "Resort Hotel"}).to_dict()
+    data = city_hotels_rev | resort_hotels_rev
+    return data
+
+
+
 
 
 
