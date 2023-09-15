@@ -67,9 +67,14 @@ def get_total_revenue(df=Depends(import_data_to_df)):
     data = city_hotels_rev | resort_hotels_rev
     return data
 
+
 @bookings.get("/top_countries", status_code=status.HTTP_200_OK)
 def get_top_countries(df=Depends(import_data_to_df)):
-    df_group_by_country = df.groupby(["country"])
+    top_countries = df["country"].value_counts().head().index.to_list()
+    data = {}
+    for i, country in enumerate(top_countries):
+        data[i+1] = country
+    return data
 
 
 @bookings.get('/search', status_code=status.HTTP_200_OK)
