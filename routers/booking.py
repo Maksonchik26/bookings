@@ -1,6 +1,7 @@
 import json
 from typing import List
 
+import pandas as pd
 from fastapi import APIRouter, Depends, Path
 from pydantic import Field
 from starlette import status
@@ -47,9 +48,9 @@ def delete(id: int,
               response_model=List[booking_df.BookingOut],
               status_code=status.HTTP_200_OK)
 def get_by_nationality(country: str, df=Depends(import_data_to_df)):
-    filter_data = df[df["country"] == country].head(2)
-    data = [json.loads(filter_data.iloc[i].to_json()) for i in range(len(filter_data))]
-    return data
+    filter_data = df[df["country"] == country.upper()].head()
+    return Response(filter_data.to_json(orient='records'), media_type='application/json')
+
 
 
 @bookings.get("/popular_meal_package", status_code=status.HTTP_200_OK)
@@ -96,19 +97,84 @@ def get_avg_length_of_stay(df=Depends(import_data_to_df)):
     resort_hotels_avg = avg_length_of_stay.xs("Resort Hotel").rename(columns={"length_of_stay": "Resort Hotel"})
     data = city_hotels_avg.to_dict() | resort_hotels_avg.to_dict()
     return data
+    # return Response(avg_length_of_stay.to_json(orient='index'), media_type='application/json')
 
 
-@bookings.get('/{id}', response_model=List[booking_db.BookingOut] | booking_db.BookingOut,
+@bookings.get("/repeated_guests_percentage",
+              status_code=status.HTTP_200_OK,
+              description="Retrieves the percentage of repeated guests among all bookings."
+              )
+def get_repeated_guests_percentage(df=Depends(import_data_to_df)):
+    repeated_guests = df[df["is_repeated_guest"] == 1]
+    data = round((len(repeated_guests) / len(df) * 100), 2)
+    return {"percentage_o_repeated_guests": data}
+
+
+@bookings.get("/total_guests_by_year",
+              status_code=status.HTTP_200_OK,
+              description="Retrieves the total number of guests (adults, children, and babies) by booking year"
+              )
+def get_total_guests_by_year(df=Depends(import_data_to_df)):
+    df["guests"] = df["adults"] + df["children"] + df["babies"]
+    df["booking_year"] = df["booking_date"].apply(lambda x: x[:4])
+    data = df.groupby(["booking_year"])[["guests"]].sum()
+    return Response(data.to_json(orient='index'), media_type='application/json')
+
+
+@bookings.get("/avg_daily_rate_resort",
+              status_code=status.HTTP_200_OK,
+              description="Retrieves the average daily rate by month for resort hotel bookings"
+              )
+def get_avg_daily_rate_resort(df=Depends(import_data_to_df)):
+    df = df[df["hotel"] == "Resort Hotel"]
+    data = df.groupby(["arrival_date_month"])[["adr"]].mean()
+    return Response(data.to_json(orient="index"), media_type='application/json')
+
+
+# @bookings.get("/count_by_hotel_meal",
+#               status_code=status.HTTP_200_OK,
+#               description="Retrieves the count of bookings grouped by hotel type and meal package")
+# def get_count_by_hotel_meal(df=Depends(import_data_to_df)):
+#     df = df[["hotel", "meal"]].value_counts()
+#     # df_without_canceled["booking year"] = df["booking_date"].apply(lambda x: x[:4])
+#     # avg_length_of_stay = df_without_canceled.groupby(["hotel", "booking year"])[["length_of_stay"]].mean()
+#     # city_hotels_avg = avg_length_of_stay.xs("City Hotel").rename(columns={"length_of_stay": "City Hotel"})
+#     # resort_hotels_avg = avg_length_of_stay.xs("Resort Hotel").rename(columns={"length_of_stay": "Resort Hotel"})
+#     # data = city_hotels_avg.to_dict() | resort_hotels_avg.to_dict()
+#     print(type(df))
+#     return "sd"
+
+
+@bookings.get("/total_revenue_resort_by_country",
+              status_code=status.HTTP_200_OK,
+              description="Retrieves the total revenue by country for resort hotel bookings")
+def get_total_revenue_resort_by_country(df=Depends(import_data_to_df)):
+    df = df[df["hotel"] == "Resort Hotel"]
+    df["revenue"] = df["adr"] * df["length_of_stay"]
+    data = df.groupby(["country"])[["revenue"]].sum()
+
+    return Response(data.to_json(orient="index"), media_type='application/json')
+
+
+@bookings.get("/most_common_arrival_day_city",
+              status_code=status.HTTP_200_OK,
+              description="Retrieves the most common arrival date day of the week for city hotel bookings",
+              response_description="Number of the day of the week, where Monday = 0"
+              )
+def get_most_common_arrival_day_city(df=Depends(import_data_to_df)):
+    df = df[df["hotel"] == "City Hotel"]
+    df["arrival_date_day_of_the_week"] = pd.DatetimeIndex(df["arrival_date"]).weekday
+    data = df["arrival_date_day_of_the_week"].value_counts().idxmax()
+    return {"most_common_arrival_day_city": int(data)}
+
+
+@bookings.get('/{id}',
+              response_model=List[booking_db.BookingOut] | booking_db.BookingOut,
               status_code=status.HTTP_200_OK)
 def get_one(id: int = Path(ge=0),
             test_crud: BookingCRUD = Depends()):
     data = test_crud.read_one(id)
     return data
-
-
-@bookings.get("/avg_daily_rate/{id}", status_code=status.HTTP_200_OK)
-def get_avg_daily_rate(id: int, df=Depends(import_data_to_df)):
-    return {"avg_daily_rate": df.iloc[id]["adr"]}
 
 
 @stats.get("/total_number_of_bookings", status_code=status.HTTP_200_OK)
