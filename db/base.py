@@ -3,7 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 
-engine = create_engine('sqlite:///hotel.db', echo=True)
+engine = create_engine("sqlite:///hotel.db", echo=True)
 
 SessionLocal = sessionmaker(bind=engine)
 

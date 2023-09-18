@@ -7,7 +7,7 @@ class Base(DeclarativeBase):
 
 
 class Bookings(Base):
-    __tablename__ = 'bookings'
+    __tablename__ = "bookings"
 
     hotel: Mapped[str] = mapped_column(String(256))
     is_canceled: Mapped[int] = mapped_column(Integer())

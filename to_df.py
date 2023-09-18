@@ -11,7 +11,7 @@ def import_data_to_df():
     df["arrival_date"] = df["arrival_date_year"].apply(lambda x: str(x)) + "-" + df["arrival_date_month"]\
                          + "-" + df["arrival_date_day_of_month"].apply(lambda x: str(x))
 
-    df["arrival_date"] = pd.to_datetime(df["arrival_date"], format='mixed', errors="ignore")
+    df["arrival_date"] = pd.to_datetime(df["arrival_date"], format="mixed", errors="ignore")
 
     df["booking_date"] = df["arrival_date"] - df["lead_time"].apply(lambda x: timedelta(days=x))
     df["arrival_date"] = df["arrival_date"].dt.strftime("%Y-%m-%d")

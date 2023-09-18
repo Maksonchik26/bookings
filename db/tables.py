@@ -7,7 +7,7 @@ class Base(DeclarativeBase):
 
 
 class Booking(Base):
-    __tablename__ = 'bookings'
+    __tablename__ = "bookings"
     id: Mapped[int] = mapped_column(primary_key=True)
 
     booking_date: Mapped[str] = mapped_column(String(64))
