@@ -11,6 +11,7 @@ app = FastAPI()
 
 app.include_router(booking.bookings)
 app.include_router(booking.stats)
+app.include_router(booking.analysis)
 
 
 @app.get("/")

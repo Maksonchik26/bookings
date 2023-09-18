@@ -18,7 +18,7 @@ class BookingIn(BaseModel):
         }
 
 
-class BookingOut(BaseModel):
+class BookingOut(BookingIn):
     id: int | None
     booking_date: str
     length_of_stay: int

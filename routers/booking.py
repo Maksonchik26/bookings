@@ -18,7 +18,12 @@ bookings = APIRouter(
 
 stats = APIRouter(
     prefix="/bookings/stats",
-    tags=["/bookings/stats"]
+    tags=["stats"]
+)
+
+analysis = APIRouter(
+    prefix="/bookings/analysis",
+    tags=["analysis"]
 )
 
 
@@ -148,7 +153,7 @@ def get_repeated_guests_percentage(df=Depends(import_data_to_df)):
 def get_total_guests_by_year(df=Depends(import_data_to_df)):
     df["guests"] = df["adults"] + df["children"] + df["babies"]
     df["booking_year"] = df["booking_date"].apply(lambda x: x[:4])
-    data = df.groupby(["booking_year"])[["guests"]].sum()
+    data = df.groupby(["booking_year"])["guests"].sum()
     return Response(data.to_json(orient="index"), media_type="application/json")
 
 
@@ -216,13 +221,13 @@ def get_count_by_hotel_repeated_guest(df=Depends(import_data_to_df)):
     return data
 
 
-@bookings.get("/{booling_id}",
+@bookings.get("/{booking_id}",
               response_model=List[booking_db.BookingOut] | booking_db.BookingOut,
               description="Retrieves details of a specific booking by its unique ID",
               status_code=status.HTTP_200_OK)
-def get_one(id: int = Path(ge=0),
+def get_one(booking_id: int = Path(ge=0),
             crud: BookingCRUD = Depends()):
-    data = crud.read_one(id)
+    data = crud.read_one(booking_id)
     return data
 
 
@@ -235,3 +240,60 @@ def get_total_number_of_bookings(df=Depends(import_data_to_df)):
 def get_avg_length_of_stay(df=Depends(import_data_to_df)):
     df["length_of_stay"] = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
     return {"avg_length_of_stay": df["length_of_stay"].mean()}
+
+
+@stats.get("/avg_daily_rate",
+           status_code=status.HTTP_200_OK,
+           description="Retrieves the average daily rate bookings",
+           response_model=dict
+           )
+def get_avg_daily_rate(df=Depends(import_data_to_df)):
+    data = df[["adr"]].mean()
+    return Response(data.to_json(orient="index"), media_type="application/json")
+
+
+@stats.get("/repeated_guests_percentage",
+              status_code=status.HTTP_200_OK,
+              description="Retrieves the percentage of repeated guests among all bookings.",
+              response_model=dict
+              )
+def get_repeated_guests_percentage(df=Depends(import_data_to_df)):
+    repeated_guests = df[df["is_repeated_guest"] == 1]
+    data = round((len(repeated_guests) / len(df) * 100), 2)
+    return {"percentage_o_repeated_guests": data}
+
+
+@analysis.get("/total_revenue",
+             status_code=status.HTTP_200_OK,
+             response_model=dict,
+             description="Retrieves the total revenue grouped by booking month and hotel type"
+             )
+def get_total_revenue(df=Depends(import_data_to_df)):
+    df["revenue"] = df["adr"] * df["length_of_stay"]
+    revenues = df.groupby(["hotel", "arrival_date_month"])[["revenue"]].sum()
+    city_hotels_rev = revenues.xs("City Hotel").rename(columns={"revenue": "City Hotel"}).to_dict()
+    resort_hotels_rev = revenues.xs("Resort Hotel").rename(columns={"revenue": "Resort Hotel"}).to_dict()
+    data = city_hotels_rev | resort_hotels_rev
+    return data
+
+
+@analysis.get("/top_countries_bookings",
+              status_code=status.HTTP_200_OK,
+              response_model=dict,
+              description="Retrieves the top 5 countries bookings with the highest number of bookings"
+              )
+def get_top_countries_bookings(df=Depends(import_data_to_df)):
+    data = df["country"].value_counts().head()
+    return Response(data.to_json(orient="index"), media_type="application/json")
+
+
+@analysis.get("/total_guests_by_year",
+              status_code=status.HTTP_200_OK,
+              description="Retrieves the total number of guests (adults, children, and babies) by booking year",
+              response_model=dict
+              )
+def get_total_guests_by_year(df=Depends(import_data_to_df)):
+    df["guests"] = df["adults"] + df["children"] + df["babies"]
+    df["booking_year"] = df["booking_date"].apply(lambda x: x[:4])
+    data = df.groupby(["booking_year"])["guests"].sum()
+    return Response(data.to_json(orient="index"), media_type="application/json")
