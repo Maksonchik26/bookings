@@ -1,10 +1,11 @@
 from typing import List, Type, Any
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from db.base import get_session
 from db.tables import Booking
+from models.booking_db import BookingIn
 
 
 class BookingCRUD:
@@ -12,11 +13,14 @@ class BookingCRUD:
     def __init__(self, session: Session = Depends(get_session)):
         self.session = session
 
-    def read_all(self) -> List[Type[Booking]]:
+    async def read_all(self) -> List[Type[Booking]]:
         return self.session.query(Booking).all()
 
     def read_one(self, id: int) -> Booking | None:
-        return self.session.query(Booking).filter(Booking.id == id).first()
+        booking = self.session.query(Booking).filter(Booking.id == id).first()
+        if booking is not None:
+            return booking
+        raise HTTPException(status_code=404, detail="Booking not found")
 
     def create(self, data: dict):
         obj = Booking(**data)
@@ -24,21 +28,21 @@ class BookingCRUD:
         self.session.commit()
         return obj
 
-    def update(self, obj: Booking, name: str, value: Any):
-        setattr(obj, name, value)
-        self.session.commit()
-
     def delete(self, obj: Booking):
         self.session.delete(obj)
         self.session.commit()
 
-    # def read_by_params(self, booking_date: str | None, length_of_stay: int | None, guest_name: str | None,
-    #                    daily_rate: float | None) -> Booking:
-    #     return self.session.query(Booking).filter(Booking.booking_date == booking_date if booking_date else None,
-    #                                               Booking.length_of_stay == length_of_stay if length_of_stay else None,
-    #                                               Booking.guest_name == guest_name if guest_name else None,
-    #                                               Booking.daily_rate == daily_rate if daily_rate else None,
-    #                                               ).all()
+    def read_by_params(self, booking_date: str | None, length_of_stay: int | None, guest_name: str | None,
+                       daily_rate: float | None) -> Booking:
+        if booking_date:
+            result = self.session.query(Booking).filter(Booking.booking_date == booking_date).all()
+        if length_of_stay:
+            result = self.session.query(Booking).filter(Booking.length_of_stay == length_of_stay).all()
+        if guest_name:
+            result = self.session.query(Booking).filter(Booking.guest_name == guest_name).all()
+        if daily_rate:
+            result = self.session.query(Booking).filter(Booking.daily_rate == daily_rate).all()
+        return result
 
     def __del__(self):
         self.session.close()
