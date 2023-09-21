@@ -31,8 +31,8 @@ analysis = APIRouter(
               status_code=status.HTTP_200_OK,
               description=" Retrieves a list of all bookings in the dataset",
               )
-async def get_all(crud: BookingCRUD = Depends()):
-    data = crud.read_all()
+async def get_all(crud: BookingCRUD = Depends(), limit: int = Query(100, le=100), offset: int = Query(0)):
+    data = crud.read_all(limit, offset)
     return data
 
 
@@ -60,8 +60,11 @@ async def delete(booking_id: int = Path(ge=0),
               response_model=List[booking_df.BookingOut],
               status_code=status.HTTP_200_OK,
               description="Retrieves bookings based on the provided nationality")
-async def get_by_nationality(country: str, df=Depends(import_data_to_df)):
-    data = df[df["country"] == country.upper()].head(100)
+async def get_by_nationality(country: str, df=Depends(import_data_to_df),
+                             limit: int = Query(100, le=100),
+                             offset: int = Query(0)
+                             ):
+    data = df[df["country"] == country.upper()].iloc[offset:offset+limit]
     return Response(data.to_json(orient="records"), media_type="application/json")
 
 
@@ -81,10 +84,8 @@ async def get_popular_meal_package(df=Depends(import_data_to_df)):
               )
 async def get_total_revenue(df=Depends(import_data_to_df)):
     df["revenue"] = df["adr"] * df["length_of_stay"]
-    revenues = df.groupby(["hotel", "arrival_date_month"])[["revenue"]].sum()
-    city_hotels_rev = revenues.xs("City Hotel").rename(columns={"revenue": "City Hotel"}).to_dict()
-    resort_hotels_rev = revenues.xs("Resort Hotel").rename(columns={"revenue": "Resort Hotel"}).to_dict()
-    data = city_hotels_rev | resort_hotels_rev
+    i = df.groupby(["hotel", "arrival_date_month"])[["revenue"]].sum().reset_index(level=1)
+    data = {k: dict(g.values) for k, g in i.groupby(level=0)}
     return data
 
 
@@ -123,10 +124,8 @@ async def get_by_param(booking_date: Optional[str] = None,
 async def get_avg_length_of_stay(df=Depends(import_data_to_df)):
     df_without_canceled = df[df["is_canceled"] == 0]
     df_without_canceled["booking year"] = df["booking_date"].apply(lambda x: x[:4])
-    avg_length_of_stay = df_without_canceled.groupby(["hotel", "booking year"])[["length_of_stay"]].mean()
-    city_hotels_avg = avg_length_of_stay.xs("City Hotel").rename(columns={"length_of_stay": "City Hotel"})
-    resort_hotels_avg = avg_length_of_stay.xs("Resort Hotel").rename(columns={"length_of_stay": "Resort Hotel"})
-    data = city_hotels_avg.to_dict() | resort_hotels_avg.to_dict()
+    i = df_without_canceled.groupby(["hotel", "booking year"])[["length_of_stay"]].mean().reset_index(level=1)
+    data = {k: dict(g.values) for k, g in i.groupby(level=0)}
     return data
 
 
@@ -171,11 +170,10 @@ async def get_avg_daily_rate_resort(credentials: Annotated[str, Depends(auth.ver
               description="Retrieves the count of bookings grouped by hotel type and meal package",
               )
 async def get_count_by_hotel_meal(credentials: Annotated[str, Depends(auth.verify_credentials)],
-                            df=Depends(import_data_to_df)):
+                                  df=Depends(import_data_to_df)):
     df = df[["hotel", "meal"]].value_counts().to_frame()
-    city_hotels = df.xs("City Hotel").rename(columns={"count": "City Hotel"})
-    resort_hotels = df.xs("Resort Hotel").rename(columns={"count": "Resort Hotel"})
-    data = city_hotels.to_dict() | resort_hotels.to_dict()
+    i = df.groupby(["hotel", "meal"]).mean().reset_index(level=1)
+    data = {k: dict(g.values) for k, g in i.groupby(level=0)}
     return data
 
 
@@ -217,9 +215,8 @@ async def get_count_by_hotel_repeated_guest(credentials: Annotated[str, Depends(
                                       df=Depends(import_data_to_df)
                                       ):
     df = df[["hotel", "is_repeated_guest"]].value_counts().to_frame()
-    city_hotels = df.xs("City Hotel").rename(columns={"count": "City Hotel"})
-    resort_hotels = df.xs("Resort Hotel").rename(columns={"count": "Resort Hotel"})
-    data = city_hotels.to_dict() | resort_hotels.to_dict()
+    i = df.groupby(["hotel", "is_repeated_guest"]).mean().reset_index(level=1)
+    data = {k: dict(g.values) for k, g in i.groupby(level=0)}
     return data
 
 
@@ -279,10 +276,8 @@ async def get_repeated_guests_percentage(df=Depends(import_data_to_df)):
               )
 async def get_total_revenue(df=Depends(import_data_to_df)):
     df["revenue"] = df["adr"] * df["length_of_stay"]
-    revenues = df.groupby(["hotel", "arrival_date_month"])[["revenue"]].sum()
-    city_hotels_rev = revenues.xs("City Hotel").rename(columns={"revenue": "City Hotel"}).to_dict()
-    resort_hotels_rev = revenues.xs("Resort Hotel").rename(columns={"revenue": "Resort Hotel"}).to_dict()
-    data = city_hotels_rev | resort_hotels_rev
+    i = df.groupby(["hotel", "arrival_date_month"])[["revenue"]].sum().reset_index(level=1)
+    data = {k: dict(g.values) for k, g in i.groupby(level=0)}
     return data
 
 

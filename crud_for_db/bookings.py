@@ -13,8 +13,8 @@ class BookingCRUD:
     def __init__(self, session: Session = Depends(get_session)):
         self.session = session
 
-    async def read_all(self) -> List[Type[Booking]]:
-        return self.session.query(Booking).all()
+    def read_all(self, limit, offset) -> List[Type[Booking]]:
+        return self.session.query(Booking).limit(limit).offset(offset).all()
 
     def read_one(self, id: int) -> Booking | None:
         booking = self.session.query(Booking).filter(Booking.id == id).first()

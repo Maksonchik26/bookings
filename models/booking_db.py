@@ -20,7 +20,3 @@ class BookingIn(BaseModel):
 
 class BookingOut(BookingIn):
     id: int | None
-    booking_date: str
-    length_of_stay: int
-    guest_name: str
-    daily_rate: float
